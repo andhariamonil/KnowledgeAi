@@ -81,4 +81,4 @@ KnowledgeAI is a sophisticated, full-stack internal knowledge base that allows o
 This project is for educational purposes as part of the B.Tech CSE (AI-ML) Final Major Project at Adani University.
 
 ---
-Developed by **[Your Name]** · 2025
+Developed by **Monil Andharia** · 2025
