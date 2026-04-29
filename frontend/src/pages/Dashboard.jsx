@@ -13,28 +13,12 @@ const STAT_CARDS = [
     gradient: 'linear-gradient(135deg, #6366f1, #818cf8)',
   },
   {
-    key: 'totalQueries',
-    label: 'Total Queries',
-    icon: '💬',
-    iconBg: 'rgba(139,92,246,0.15)',
-    iconBorder: 'rgba(139,92,246,0.25)',
-    gradient: 'linear-gradient(135deg, #8b5cf6, #a78bfa)',
-  },
-  {
     key: 'activeUsers',
     label: 'Active Users',
     icon: '👥',
     iconBg: 'rgba(34,211,238,0.15)',
     iconBorder: 'rgba(34,211,238,0.25)',
     gradient: 'linear-gradient(135deg, #22d3ee, #67e8f9)',
-  },
-  {
-    key: 'avgResponseTime',
-    label: 'Avg Response Time',
-    icon: '⚡',
-    iconBg: 'rgba(16,185,129,0.15)',
-    iconBorder: 'rgba(16,185,129,0.25)',
-    gradient: 'linear-gradient(135deg, #10b981, #34d399)',
   },
 ];
 
@@ -76,7 +60,7 @@ export default function Dashboard() {
             ? 'Loading workspace stats…'
             : error
             ? 'Could not load stats — backend may still be starting'
-            : `${stats?.indexedDocuments ?? 0} documents indexed · Hybrid RAG active · ${stats?.totalQueries ?? 0} queries served`
+            : `${stats?.indexedDocuments ?? 0} documents indexed · Hybrid RAG active`
           }
         </p>
       </div>

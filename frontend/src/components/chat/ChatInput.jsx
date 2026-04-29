@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function ChatInput({ onSend, disabled = false }) {
+export default function ChatInput({ onSend, disabled = false, searchMode = 'hybrid' }) {
   const [value, setValue] = useState('');
   const textareaRef = useRef(null);
 
@@ -60,6 +60,7 @@ export default function ChatInput({ onSend, disabled = false }) {
       </div>
 
       <div className="chat-input-actions">
+
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-muted)' }}>
           <kbd style={{
             padding: '1px 5px', borderRadius: 3,

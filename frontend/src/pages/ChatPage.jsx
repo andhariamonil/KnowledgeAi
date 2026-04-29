@@ -30,7 +30,7 @@ function normaliseMessage(message) {
   };
 }
 
-function SessionsPanel({ sessions, activeId, onSelect, onNew, loading, isOpen }) {
+function SessionsPanel({ sessions, activeId, onSelect, onNew, loading, isOpen, searchMode, onModeChange }) {
   return (
     <div className={`chat-sessions-panel ${isOpen ? 'open' : ''}`}>
       <div className="sessions-header">
@@ -106,10 +106,12 @@ export default function ChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
+  const [searchMode, setSearchMode] = useState(savedPrefs.ragMode || 'hybrid');
   const [resultCount, setResultCount] = useState(savedPrefs.resultCount || 5);
 
   useEffect(() => {
     const prefs = user?.preferences || getStoredPrefs();
+    setSearchMode(prefs.ragMode || 'hybrid');
     setResultCount(prefs.resultCount || 5);
   }, [user]);
 
@@ -140,7 +142,7 @@ export default function ChatPage() {
       setIsTyping(true);
 
       const reply = normaliseMessage(
-        await chatAPI.sendMessage(session.id, text, 'hybrid', resultCount)
+        await chatAPI.sendMessage(session.id, text, searchMode, resultCount)
       );
 
       // Only add if we are still on the same session and message isn't already there
@@ -214,7 +216,12 @@ export default function ChatPage() {
     navigate(`/chat/${session.id}`);
   };
 
-
+  const handleModeChange = (mode) => {
+    setSearchMode(mode);
+    const nextPrefs = { ...(user?.preferences || getStoredPrefs()), ragMode: mode, resultCount };
+    localStorage.setItem('knowledgeai_prefs', JSON.stringify(nextPrefs));
+    if (user) updateUser({ ...user, preferences: nextPrefs });
+  };
 
   const handleDeleteMessage = async (messageId) => {
     if (!window.confirm('Delete this message?')) return;
@@ -276,6 +283,8 @@ export default function ChatPage() {
         onNew={handleNewChat}
         loading={sessionsLoading}
         isOpen={isSessionsOpen}
+        searchMode={searchMode}
+        onModeChange={handleModeChange}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -315,7 +324,7 @@ export default function ChatPage() {
                   {activeSession.title}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  {messages.length} messages · Hybrid search · pgvector
+                  {messages.length} messages · pgvector
                 </div>
               </div>
 
@@ -356,6 +365,7 @@ export default function ChatPage() {
           onSend={handleSend}
           onDelete={handleDeleteMessage}
           isTyping={isTyping}
+          searchMode={searchMode}
         />
       </div>
     </div>
