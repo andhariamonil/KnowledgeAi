@@ -12,34 +12,43 @@ const SOURCE_TYPE_CONFIG = {
   txt:   { emoji: '📃', className: 'source-doc' },
 };
 
-function SourceChip({ source, onOpen }) {
+function SourceChip({ source, index, onOpen }) {
   const type = source.type || source.file_type || 'doc';
   const cfg  = SOURCE_TYPE_CONFIG[type] || SOURCE_TYPE_CONFIG.doc;
 
-  // Use original_name if available, else name, else documentId
   const displayName = source.original_name || source.name || source.source || 'Document';
-  // Strip UUID prefix from filename if present (e.g. "1234567890-file.pdf" → "file.pdf")
-  const cleanName = displayName.replace(/^\d{10,}-\d+\./, '') || displayName;
+  const cleanName = displayName;
 
   return (
-    <button
-      type="button"
-      className={`source-chip ${cfg.className}`}
-      title={displayName}
-      style={{ cursor: 'pointer', border: 'none' }}
-      onClick={() => onOpen?.(source)}
-    >
-      <span>{cfg.emoji}</span>
-      <span style={{
-        maxWidth: 160, overflow: 'hidden',
-        textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>
-        {cleanName}
-      </span>
-      {source.page    && <span style={{ opacity: 0.7 }}>· p.{source.page}</span>}
-      {source.slide   && <span style={{ opacity: 0.7 }}>· slide {source.slide}</span>}
-      {source.section && <span style={{ opacity: 0.7 }}>· §{source.section}</span>}
-    </button>
+    <div className="source-item" style={{ marginBottom: 12 }}>
+      <button
+        type="button"
+        className={`source-chip ${cfg.className}`}
+        title={displayName}
+        style={{ cursor: 'pointer', border: 'none', display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 6, background: 'var(--glass-bg)', color: 'var(--text-primary)', fontSize: 12 }}
+        onClick={() => onOpen?.(source)}
+      >
+        <span>{cfg.emoji}</span>
+        <span style={{ fontWeight: 600 }}>Source {index}: {cleanName}</span>
+      </button>
+      {source.content && (
+        <div style={{
+          marginTop: 6,
+          padding: '8px 12px',
+          background: 'rgba(255,255,255,0.03)',
+          borderLeft: '2px solid var(--indigo)',
+          borderRadius: '0 4px 4px 0',
+          fontSize: 11,
+          color: 'var(--text-muted)',
+          lineHeight: 1.5,
+          fontStyle: 'italic',
+          maxWidth: '100%',
+          overflowWrap: 'break-word'
+        }}>
+          "...{source.content.length > 200 ? source.content.slice(0, 200) + '...' : source.content}"
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -60,7 +69,7 @@ function parseSources(sources) {
   return [];
 }
 
-export default function MessageBubble({ message }) {
+export default function MessageBubble({ message, onDelete }) {
   const isUser  = message.role === 'user';
   const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
@@ -93,40 +102,40 @@ export default function MessageBubble({ message }) {
       </div>
 
       <div className="message-content">
-        <div className={`message-bubble ${isUser ? 'user' : 'ai'}`}>
-          {/* Render content with basic markdown-like line breaks */}
-          {content.split('\n').map((line, i) => (
-            <span key={i}>
-              {line}
-              {i < content.split('\n').length - 1 && <br />}
-            </span>
-          ))}
-
-          {/* Copy button for AI messages */}
-          {!isUser && (
-            <button
-              onClick={handleCopy}
-              style={{
-                marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 4,
-                padding: '3px 10px', borderRadius: 'var(--radius-full)',
-                background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)',
-                color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer',
-                fontFamily: 'inherit', transition: 'all 0.15s',
-              }}
-            >
-              {copied ? '✓ Copied' : '⎘ Copy'}
-            </button>
-          )}
+        <div 
+          className={`message-bubble ${isUser ? 'user' : 'ai'}`}
+          style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+        >
+          {String(content)}
         </div>
 
+          {/* Action buttons */}
+          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+            {!isUser && (
+              <button
+                onClick={handleCopy}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '3px 10px', borderRadius: 'var(--radius-full)',
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)',
+                  color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer',
+                  fontFamily: 'inherit', transition: 'all 0.15s',
+                }}
+              >
+                {copied ? '✓ Copied' : '⎘ Copy'}
+              </button>
+            )}
+          </div>
+
         {/* Sources — only for AI messages with sources */}
-        {!isUser && sources.length > 0 && (
+        {!isUser && Array.isArray(sources) && sources.length > 0 && (
           <div className="sources-section">
             <div className="sources-label">Sources used</div>
             <div className="source-chips">
-              {sources.map((src, i) => (
-                <SourceChip key={i} source={src} onOpen={openSource} />
-              ))}
+              {sources.map((src, i) => {
+                if (!src) return null;
+                return <SourceChip key={i} source={src} index={i + 1} onOpen={openSource} />;
+              })}
             </div>
           </div>
         )}

@@ -67,11 +67,11 @@ export const usersAPI = {
 
 // ── Documents ─────────────────────────────────────────────────────────────────
 export const documentsAPI = {
-  list:   (workspace) => get(`/documents${workspace ? `?workspace=${workspace}` : ''}`),
+  list:   ()   => get('/documents'),
   delete: (id)        => del(`/documents/${id}`),
   open:   (id)        => `${BASE_URL}/documents/${id}/open`,
 
-  upload: (file, workspaceId, onProgress) => {
+  upload: (file, onProgress) => {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `${BASE_URL}/documents/upload`);
@@ -100,7 +100,7 @@ export const documentsAPI = {
 
       const fd = new FormData();
       fd.append('file', file);
-      if (workspaceId) fd.append('workspace', workspaceId);
+      // Removed workspaceId append
       xhr.send(fd);
     });
   },
@@ -108,19 +108,19 @@ export const documentsAPI = {
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
 export const chatAPI = {
-  getSessions:       (workspaceId)          => get(`/chat/sessions?workspace=${workspaceId || ''}`),
-  createSession:     (title, workspaceId)   => post('/chat/sessions', { title, workspaceId }),
+  getSessions:       ()                     => get('/chat/sessions'),
+  createSession:     (title)                => post('/chat/sessions', { title }),
   deleteSession:     (id)                   => del(`/chat/sessions/${id}`),
   getMessages:       (sessionId)            => get(`/chat/sessions/${sessionId}/messages`),
-  sendMessage:       (sessionId, message, workspaceId, topK) =>
+  sendMessage:       (sessionId, message, searchMode, resultCount) =>
     post(`/chat/sessions/${sessionId}/messages`, {
       message,
-      workspaceId,
       searchMode: 'hybrid', // always hybrid
-      topK,
+      topK: resultCount,
     }),
   deleteAllSessions: ()                     => del('/chat/sessions/all'),
   deleteAllMessages: (sessionId)            => del(`/chat/sessions/${sessionId}/messages`),
+  deleteMessage:     (id)                   => del(`/chat/messages/${id}`),
 };
 
 // ── Stats / Dashboard ─────────────────────────────────────────────────────────

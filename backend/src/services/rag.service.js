@@ -2,7 +2,7 @@ const { query } = require('../config/db');
 const { embedText, generateAnswer } = require('./ai.service');
 
 // ── Chunking ──────────────────────────────────────────────────────────────────
-const CHUNK_SIZE    = 400; // tokens/words approx
+const CHUNK_SIZE = 400; // tokens/words approx
 const CHUNK_OVERLAP = 80;
 
 /**
@@ -110,7 +110,7 @@ async function embedChunkWithRetry(text, retries = 3) {
 /**
  * Hybrid retrieval: semantic (cosine) + keyword (BM25/tsvector), merged by RRF.
  */
-async function hybridRetrieve(questionEmbedding, questionText, workspaceId, topK = 5) {
+async function hybridRetrieve(questionEmbedding, questionText, topK = 5) {
   const vectorStr = `[${questionEmbedding.join(',')}]`;
 
   // 1. Semantic search via pgvector cosine similarity
@@ -118,14 +118,13 @@ async function hybridRetrieve(questionEmbedding, questionText, workspaceId, topK
     `SELECT
        dc.id, dc.content, dc.document_id, dc.metadata,
        1 - (dc.embedding <=> $1::vector) AS semantic_score,
-       d.name AS doc_name, d.file_type
+       d.original_name AS doc_name, d.file_type
      FROM document_chunks dc
      JOIN documents d ON dc.document_id = d.id
      WHERE d.status = 'indexed'
-       AND ($2::text = '' OR d.workspace_id = $2)
      ORDER BY dc.embedding <=> $1::vector
-     LIMIT $3`,
-    [vectorStr, workspaceId || '', topK * 2]
+     LIMIT $2`,
+    [vectorStr, topK * 2]
   );
 
   // 2. Keyword search via full-text
@@ -133,15 +132,14 @@ async function hybridRetrieve(questionEmbedding, questionText, workspaceId, topK
     `SELECT
        dc.id, dc.content, dc.document_id, dc.metadata,
        ts_rank(to_tsvector('english', dc.content), plainto_tsquery('english', $1)) AS keyword_score,
-       d.name AS doc_name, d.file_type
+       d.original_name AS doc_name, d.file_type
      FROM document_chunks dc
      JOIN documents d ON dc.document_id = d.id
      WHERE d.status = 'indexed'
-       AND ($2::text = '' OR d.workspace_id = $2)
        AND to_tsvector('english', dc.content) @@ plainto_tsquery('english', $1)
      ORDER BY keyword_score DESC
-     LIMIT $3`,
-    [questionText, workspaceId || '', topK * 2]
+     LIMIT $2`,
+    [questionText, topK * 2]
   );
 
   // 3. Reciprocal Rank Fusion
@@ -164,11 +162,11 @@ async function hybridRetrieve(questionEmbedding, questionText, workspaceId, topK
     .slice(0, topK);
 
   return merged.map(({ row }) => ({
-    content:    row.content,
-    source:     row.doc_name || row.metadata?.source || 'Unknown',
+    content: row.content,
+    source: row.doc_name || row.metadata?.source || 'Unknown',
     documentId: row.document_id,
-    type:       row.file_type || 'doc',
-    metadata:   row.metadata,
+    type: row.file_type || 'doc',
+    metadata: row.metadata,
   }));
 }
 
@@ -176,14 +174,14 @@ async function hybridRetrieve(questionEmbedding, questionText, workspaceId, topK
 /**
  * End-to-end: question → embed → hybrid retrieve → LLM → answer + sources
  */
-async function ragQuery(question, workspaceId) {
+async function ragQuery(question) {
   console.log(`🔍 RAG Query: "${question.slice(0, 60)}…"`);
 
   // 1. Embed question
   const questionEmbedding = await embedText(question);
 
   // 2. Hybrid retrieval
-  const contexts = await hybridRetrieve(questionEmbedding, question, workspaceId, 5);
+  const contexts = await hybridRetrieve(questionEmbedding, question, 5);
 
   if (contexts.length === 0) {
     return {
@@ -195,11 +193,13 @@ async function ragQuery(question, workspaceId) {
   // 3. Generate answer with LLM
   const answer = await generateAnswer(question, contexts);
 
-  // 4. Deduplicate sources
-  const seen = new Set();
-  const sources = contexts
-    .filter(c => { if (seen.has(c.source)) return false; seen.add(c.source); return true; })
-    .map(c => ({ name: c.source, type: c.type, documentId: c.documentId }));
+  // 4. Sources: Include content snippets
+  const sources = contexts.map(c => ({
+    name: c.source,
+    type: c.type,
+    documentId: c.documentId,
+    content: c.content, // Include the actual snippet used
+  }));
 
   return { answer, sources };
 }

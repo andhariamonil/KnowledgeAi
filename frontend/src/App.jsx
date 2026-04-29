@@ -1,6 +1,7 @@
 import React from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import AppRoutes from './routes/AppRoutes';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import './styles/index.css';
 
 const AnimatedBackground = () => (
@@ -16,9 +17,11 @@ const AnimatedBackground = () => (
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AnimatedBackground />
-      <AppRoutes />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AnimatedBackground />
+        <AppRoutes />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

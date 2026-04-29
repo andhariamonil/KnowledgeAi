@@ -3,11 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { authAPI } from '../services/api';
 
-const ROLE_DEMO = [
-  { role: 'admin',   email: 'admin@acme.com',   label: 'Admin',   color: 'var(--rose)',    icon: '👑' },
-  { role: 'mentor',  email: 'mentor@acme.com',  label: 'Mentor',  color: 'var(--violet)',  icon: '🎓' },
-  { role: 'trainee', email: 'trainee@acme.com', label: 'Trainee', color: 'var(--cyan)',    icon: '🌱' },
-];
+const ROLE_DEMO = [];
 
 // ── Forgot Password Modal ─────────────────────────────────────────────────────
 function ForgotPasswordModal({ onClose }) {
@@ -204,11 +200,7 @@ export default function Login() {
     }
   };
 
-  const fillDemo = (demoEmail) => {
-    setEmail(demoEmail);
-    setPassword('password123');
-    setError('');
-  };
+
 
   return (
     <div className="login-page">
@@ -247,30 +239,7 @@ export default function Login() {
           <div className="login-sub">Sign in to your workspace</div>
         </div>
 
-        {/* Role quick-fill */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-          {ROLE_DEMO.map((d) => (
-            <button
-              key={d.role}
-              onClick={() => fillDemo(d.email)}
-              style={{
-                flex: 1, padding: '7px 6px', borderRadius: 'var(--radius-md)',
-                background: 'rgba(255,255,255,0.04)', border: '1px solid var(--glass-border)',
-                color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer',
-                fontFamily: 'inherit', transition: 'all 0.15s', textAlign: 'center',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-              }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = d.color}
-              onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--glass-border)'}
-            >
-              <span style={{ fontSize: 16 }}>{d.icon}</span>
-              <span style={{ color: d.color, fontWeight: 600 }}>{d.label}</span>
-            </button>
-          ))}
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', marginBottom: 16 }}>
-          ↑ Click a role to auto-fill demo credentials
-        </div>
+
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">

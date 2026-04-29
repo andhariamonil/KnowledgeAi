@@ -266,16 +266,16 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Workspace info */}
+          {/* Stats info */}
           <div className="animate-fade-up delay-500" style={{
             padding: '16px 20px', borderRadius: 'var(--radius-lg)',
             background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)',
           }}>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              Your Workspace
+              Knowledge Base
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-              {user?.workspace || 'Default Workspace'}
+              Global Repository
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
               {stats?.totalChunks ?? 0} total chunks indexed in pgvector

@@ -38,6 +38,9 @@ async function getDocumentById(req, res) {
 
 // UPLOAD
 async function uploadDocument(req, res) {
+  if (req.user.role === 'trainee') {
+    return res.status(403).json({ message: 'Trainees cannot upload documents' });
+  }
   if (!req.file) return res.status(400).json({ message: 'No file' });
 
   const { originalname, filename, size, path: filePath } = req.file;
@@ -65,6 +68,9 @@ async function uploadDocument(req, res) {
 
 // DELETE
 async function deleteDocument(req, res) {
+  if (req.user.role === 'trainee') {
+    return res.status(403).json({ message: 'Trainees cannot delete documents' });
+  }
   const { rows } = await query(
     'SELECT * FROM documents WHERE id = $1',
     [req.params.id]

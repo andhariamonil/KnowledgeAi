@@ -12,9 +12,8 @@ async function getSessions(req, res) {
               (SELECT COUNT(*) FROM chat_messages m WHERE m.session_id = s.id) AS message_count
        FROM chat_sessions s
        WHERE s.user_id = $1
-         AND ($2::text = '' OR s.workspace_id = $2)
        ORDER BY s.updated_at DESC`,
-      [req.user.id, workspace || '']
+      [req.user.id]
     );
     res.json(rows);
   } catch (err) {
@@ -25,11 +24,11 @@ async function getSessions(req, res) {
 // POST /api/chat/sessions
 async function createSession(req, res) {
   try {
-    const { title, workspaceId } = req.body;
+    const { title } = req.body;
     const { rows } = await query(
-      `INSERT INTO chat_sessions (user_id, title, workspace_id)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [req.user.id, title?.slice(0, 200) || 'New Chat', workspaceId || req.user.workspace || 'default']
+      `INSERT INTO chat_sessions (user_id, title)
+       VALUES ($1, $2) RETURNING *`,
+      [req.user.id, title?.slice(0, 200) || 'New Chat']
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -76,7 +75,7 @@ async function getMessages(req, res) {
 // POST /api/chat/sessions/:id/messages  — the main RAG endpoint
 async function sendMessage(req, res) {
   try {
-    const { message, workspaceId } = req.body;
+    const { message } = req.body;
     if (!message?.trim()) return res.status(400).json({ message: 'Message cannot be empty' });
 
     const sessionId = req.params.id;
@@ -87,8 +86,6 @@ async function sendMessage(req, res) {
       [sessionId, req.user.id]
     );
     if (!sess.rows[0]) return res.status(404).json({ message: 'Session not found' });
-
-    const workspace = workspaceId || sess.rows[0].workspace_id || req.user.workspace || '';
 
     // Save user message
     await query(
@@ -105,7 +102,7 @@ async function sendMessage(req, res) {
     }
 
     // ── RAG Pipeline ──
-    const { answer, sources } = await ragQuery(message.trim(), workspace);
+    const { answer, sources } = await ragQuery(message.trim());
 
     // Save assistant message
     const { rows } = await query(
@@ -124,4 +121,25 @@ async function sendMessage(req, res) {
   }
 }
 
-module.exports = { getSessions, createSession, deleteSession, getMessages, sendMessage };
+// DELETE /api/chat/messages/:id
+async function deleteMessage(req, res) {
+  try {
+    const { id } = req.params;
+    // Verify message belongs to a session owned by the user
+    const { rows } = await query(
+      `SELECT m.id FROM chat_messages m
+       JOIN chat_sessions s ON m.session_id = s.id
+       WHERE m.id = $1 AND s.user_id = $2`,
+      [id, req.user.id]
+    );
+
+    if (!rows[0]) return res.status(404).json({ message: 'Message not found or unauthorized' });
+
+    await query('DELETE FROM chat_messages WHERE id = $1', [id]);
+    res.json({ message: 'Message deleted' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to delete message' });
+  }
+}
+
+module.exports = { getSessions, createSession, deleteSession, getMessages, sendMessage, deleteMessage };

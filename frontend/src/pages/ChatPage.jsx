@@ -4,29 +4,33 @@ import ChatBox from '../components/chat/ChatBox';
 import { chatAPI, getStoredPrefs } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
-const SEARCH_MODES = [
-  { value: 'hybrid', label: 'Hybrid (Recommended)' },
-  { value: 'semantic', label: 'Semantic Only' },
-  { value: 'keyword', label: 'Keyword Only' },
-];
+
 
 function normaliseSession(session) {
+  if (!session) return null;
   return {
     ...session,
-    createdAt: session.createdAt || session.created_at,
-    updatedAt: session.updatedAt || session.updated_at,
+    id: session.id || '',
+    title: session.title || 'New Chat',
+    createdAt: session.createdAt || session.created_at || new Date().toISOString(),
+    updatedAt: session.updatedAt || session.updated_at || new Date().toISOString(),
     messageCount: Number(session.messageCount ?? session.message_count ?? 0),
   };
 }
 
 function normaliseMessage(message) {
+  if (!message) return null;
+  // Ensure we don't overwrite an existing stable ID with a random one
   return {
     ...message,
-    timestamp: message.timestamp || message.created_at,
+    id: message.id || message._id || `m_tmp_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    content: message.content || '',
+    role: message.role || 'assistant',
+    timestamp: message.timestamp || message.created_at || new Date().toISOString(),
   };
 }
 
-function SessionsPanel({ sessions, activeId, onSelect, onNew, loading, isOpen, searchMode, onModeChange }) {
+function SessionsPanel({ sessions, activeId, onSelect, onNew, loading, isOpen }) {
   return (
     <div className={`chat-sessions-panel ${isOpen ? 'open' : ''}`}>
       <div className="sessions-header">
@@ -54,51 +58,37 @@ function SessionsPanel({ sessions, activeId, onSelect, onNew, loading, isOpen, s
               key={s.id}
               className={`session-item ${activeId === s.id ? 'active' : ''}`}
               onClick={() => onSelect(s)}
+              style={{ position: 'relative', group: 'true' }}
             >
-              <div className="session-title">{s.title}</div>
-              <div className="session-meta">
-                <span className="session-time">
-                  {new Date(s.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </span>
-                <span className="session-count">{s.messageCount} msgs</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="session-title">{s.title}</div>
+                <div className="session-meta">
+                  <span className="session-time">
+                    {new Date(s.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                  <span className="session-count">{s.messageCount} msgs</span>
+                </div>
               </div>
+              <button
+                className="session-delete-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (window.confirm('Delete this conversation?')) onSelect(s, true);
+                }}
+                style={{
+                  padding: '4px 8px', borderRadius: 4, background: 'none', border: 'none',
+                  color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14,
+                  opacity: activeId === s.id ? 1 : 0, transition: 'opacity 0.2s',
+                }}
+              >
+                🗑
+              </button>
             </div>
           ))
         )}
       </div>
 
-      {/* RAG Mode Selector */}
-      <div style={{
-        padding: 12,
-        borderTop: '1px solid var(--glass-border)',
-      }}>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-          Search Mode
-        </div>
-        {SEARCH_MODES.map((mode) => (
-          <label
-            key={mode.value}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '6px 8px', borderRadius: 'var(--radius-sm)',
-              cursor: 'pointer', marginBottom: 2,
-              background: searchMode === mode.value ? 'rgba(99,102,241,0.1)' : 'transparent',
-              border: searchMode === mode.value ? '1px solid rgba(99,102,241,0.15)' : '1px solid transparent',
-            }}
-          >
-            <input
-              type="radio"
-              name="rag-mode"
-              checked={searchMode === mode.value}
-              onChange={() => onModeChange(mode.value)}
-              style={{ accentColor: 'var(--indigo)' }}
-            />
-            <span style={{ fontSize: 12, color: searchMode === mode.value ? 'var(--indigo-light)' : 'var(--text-muted)' }}>
-              {mode.label}
-            </span>
-          </label>
-        ))}
-      </div>
+
     </div>
   );
 }
@@ -109,7 +99,6 @@ export default function ChatPage() {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
   const savedPrefs = user?.preferences || getStoredPrefs();
-  const workspaceId = user?.workspace || '';
 
   const [sessions, setSessions] = useState([]);
   const [activeSession, setActiveSession] = useState(null);
@@ -117,21 +106,132 @@ export default function ChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
-  const [searchMode, setSearchMode] = useState(savedPrefs.ragMode || 'hybrid');
   const [resultCount, setResultCount] = useState(savedPrefs.resultCount || 5);
 
   useEffect(() => {
     const prefs = user?.preferences || getStoredPrefs();
-    setSearchMode(prefs.ragMode || 'hybrid');
     setResultCount(prefs.resultCount || 5);
   }, [user]);
+
+  const handleSend = async (text) => {
+    if (!text?.trim()) return;
+    
+    try {
+      // Create session if none active
+      let session = activeSession;
+      if (!session) {
+        const rawSession = await chatAPI.createSession(text.slice(0, 50));
+        session = normaliseSession(rawSession);
+        if (!session) throw new Error('Failed to create session');
+        
+        setSessions((prev) => [session, ...prev]);
+        setActiveSession(session);
+        navigate(`/chat/${session.id}`);
+      }
+
+      const userMsg = {
+        id: `m_${Date.now()}`,
+        role: 'user',
+        content: text,
+        timestamp: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, userMsg]);
+      setIsTyping(true);
+
+      const reply = normaliseMessage(
+        await chatAPI.sendMessage(session.id, text, 'hybrid', resultCount)
+      );
+
+      // Only add if we are still on the same session and message isn't already there
+      setMessages((prev) => {
+        if (prev.some(m => m.id === reply.id)) return prev;
+        return [...prev, reply];
+      });
+
+      setSessions((prev) =>
+        prev.map((item) =>
+          item.id === session.id
+            ? { ...item, title: item.title === 'New Chat' ? text.slice(0, 80) : item.title, messageCount: (item.messageCount || 0) + 2 }
+            : item
+        )
+      );
+      
+      if (searchParams.get('q')) {
+        setSearchParams((params) => {
+          params.delete('q');
+          return params;
+        });
+      }
+    } catch (err) {
+      console.error('handleSend error:', err);
+      // Only show error if we haven't successfully received a reply
+      setMessages((prev) => {
+        const hasBotReply = prev.some(m => m.role === 'assistant' && !m.id.startsWith('m_err'));
+        if (hasBotReply) return prev;
+        return [
+          ...prev,
+          {
+            id: `m_err_${Date.now()}`,
+            role: 'assistant',
+            content: 'Sorry, something went wrong. Please try again.',
+            sources: [],
+            timestamp: new Date().toISOString(),
+          },
+        ];
+      });
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const handleNewChat = async () => {
+    try {
+      const raw = await chatAPI.createSession(undefined);
+      const session = normaliseSession(raw);
+      if (!session) return;
+      setSessions((prev) => [session, ...prev]);
+      setActiveSession(session);
+      setMessages([]);
+      setIsSessionsOpen(false);
+      navigate(`/chat/${session.id}`);
+    } catch (err) {
+      console.error('Failed to create new chat:', err);
+    }
+  };
+
+  const handleSelectSession = (session, isDelete = false) => {
+    if (isDelete) {
+      chatAPI.deleteSession(session.id).then(() => {
+        setSessions((prev) => prev.filter((s) => s.id !== session.id));
+        if (activeSession?.id === session.id) {
+          navigate('/chat');
+        }
+      });
+      return;
+    }
+    setIsSessionsOpen(false);
+    navigate(`/chat/${session.id}`);
+  };
+
+
+
+  const handleDeleteMessage = async (messageId) => {
+    if (!window.confirm('Delete this message?')) return;
+    try {
+      await chatAPI.deleteMessage(messageId);
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    } catch (err) {
+      console.error('Delete message failed:', err);
+    }
+  };
 
   // Load sessions on mount
   useEffect(() => {
     setSessionsLoading(true);
-    chatAPI.getSessions(workspaceId)
+    chatAPI.getSessions()
       .then((data) => {
-        const normalised = Array.isArray(data) ? data.map(normaliseSession) : [];
+        const normalised = Array.isArray(data) ? data.map(normaliseSession).filter(Boolean) : [];
         setSessions(normalised);
         if (sessionId) {
           const found = normalised.find((s) => s.id === sessionId);
@@ -142,12 +242,12 @@ export default function ChatPage() {
         }
       })
       .finally(() => setSessionsLoading(false));
-  }, [sessionId, workspaceId]);
+  }, [sessionId]);
 
   useEffect(() => {
     if (!activeSession?.id) return;
     chatAPI.getMessages(activeSession.id).then((data) => {
-      setMessages(Array.isArray(data) ? data.map(normaliseMessage) : []);
+      setMessages(Array.isArray(data) ? data.map(normaliseMessage).filter(Boolean) : []);
     });
   }, [activeSession?.id]);
 
@@ -157,82 +257,6 @@ export default function ChatPage() {
     if (!q) return;
     handleSend(q);
   }, [searchParams]); // eslint-disable-line
-
-  const handleNewChat = async () => {
-    const session = normaliseSession(await chatAPI.createSession(undefined, workspaceId));
-    setSessions((prev) => [session, ...prev]);
-    setActiveSession(session);
-    setMessages([]);
-    setIsSessionsOpen(false);
-    navigate(`/chat/${session.id}`);
-  };
-
-  const handleSelectSession = (session) => {
-    setActiveSession(session);
-    setIsSessionsOpen(false);
-    navigate(`/chat/${session.id}`);
-  };
-
-  const handleSend = async (text) => {
-    // Create session if none active
-    let session = activeSession;
-    if (!session) {
-      session = normaliseSession(await chatAPI.createSession(text.slice(0, 50), workspaceId));
-      setSessions((prev) => [session, ...prev]);
-      setActiveSession(session);
-      navigate(`/chat/${session.id}`);
-    }
-
-    const userMsg = {
-      id: `m_${Date.now()}`,
-      role: 'user',
-      content: text,
-      timestamp: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    setIsTyping(true);
-
-    try {
-      const reply = normaliseMessage(
-        await chatAPI.sendMessage(session.id, text, workspaceId, searchMode, resultCount)
-      );
-      setMessages((prev) => [...prev, reply]);
-      setSessions((prev) =>
-        prev.map((item) =>
-          item.id === session.id
-            ? { ...item, title: item.title === 'New Chat' ? text.slice(0, 80) : item.title, messageCount: (item.messageCount || 0) + 2 }
-            : item
-        )
-      );
-      if (searchParams.get('q')) {
-        setSearchParams((params) => {
-          params.delete('q');
-          return params;
-        });
-      }
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `m_err_${Date.now()}`,
-          role: 'assistant',
-          content: 'Sorry, something went wrong. Please try again.',
-          sources: [],
-          timestamp: new Date().toISOString(),
-        },
-      ]);
-    } finally {
-      setIsTyping(false);
-    }
-  };
-
-  const handleModeChange = (mode) => {
-    setSearchMode(mode);
-    const nextPrefs = { ...(user?.preferences || getStoredPrefs()), ragMode: mode, resultCount };
-    localStorage.setItem('knowledgeai_prefs', JSON.stringify(nextPrefs));
-    if (user) updateUser({ ...user, preferences: nextPrefs });
-  };
 
   return (
     <div className="chat-layout">
@@ -252,8 +276,6 @@ export default function ChatPage() {
         onNew={handleNewChat}
         loading={sessionsLoading}
         isOpen={isSessionsOpen}
-        searchMode={searchMode}
-        onModeChange={handleModeChange}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -293,7 +315,7 @@ export default function ChatPage() {
                   {activeSession.title}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  {messages.length} messages · {searchMode} search · pgvector
+                  {messages.length} messages · Hybrid search · pgvector
                 </div>
               </div>
 
@@ -307,8 +329,8 @@ export default function ChatPage() {
                 </button>
                 <button
                   className="navbar-icon-btn"
-                  title="Clear conversation"
-                  onClick={() => setMessages([])}
+                  title="Delete conversation"
+                  onClick={() => handleSelectSession(activeSession, true)}
                   style={{ fontSize: 13 }}
                 >
                   🗑
@@ -332,8 +354,8 @@ export default function ChatPage() {
         <ChatBox
           messages={messages}
           onSend={handleSend}
+          onDelete={handleDeleteMessage}
           isTyping={isTyping}
-          searchMode={searchMode}
         />
       </div>
     </div>

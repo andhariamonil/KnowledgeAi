@@ -17,6 +17,7 @@ const NAV_BY_ROLE = {
   trainee: [
     { path: '/dashboard', icon: '⊞',  label: 'Dashboard' },
     { path: '/chat',      icon: '💬', label: 'AI Assistant' },
+    { path: '/documents', icon: '📄', label: 'Documents' },
   ],
 };
 
@@ -57,34 +58,10 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Workspace */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '8px 12px', marginBottom: 8,
-        borderRadius: 'var(--radius-md)',
-        background: 'rgba(99,102,241,0.08)',
-        border: '1px solid rgba(99,102,241,0.15)',
-      }}>
-        <div style={{
-          width: 22, height: 22, borderRadius: 4,
-          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 700, color: 'white',
-        }}>
-          {(user?.workspace || 'A')[0].toUpperCase()}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {user?.workspace || 'Workspace'}
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Organization</div>
-        </div>
-      </div>
-
       {/* Role badge */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 6,
-        padding: '5px 12px', marginBottom: 10,
+        padding: '5px 12px', margin: '0 0 10px 12px',
         borderRadius: 'var(--radius-full)',
         background: `${roleConf.color}18`,
         border: `1px solid ${roleConf.color}30`,

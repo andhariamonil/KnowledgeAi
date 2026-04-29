@@ -10,13 +10,7 @@ async function seed() {
 
     const password = await bcrypt.hash('password123', 12);
 
-    const USERS = [
-      { name: 'Alice Johnson', email: 'admin@acme.com',   role: 'admin',   workspace: 'Acme Corp' },
-      { name: 'Bob Smith',     email: 'mentor@acme.com',  role: 'mentor',  workspace: 'Acme Corp' },
-      { name: 'Carol Davis',   email: 'trainee@acme.com', role: 'trainee', workspace: 'Acme Corp' },
-      { name: 'David Kim',     email: 'david@acme.com',   role: 'trainee', workspace: 'Acme Corp' },
-      { name: 'Eva Martinez',  email: 'eva@acme.com',     role: 'mentor',  workspace: 'Acme Corp' },
-    ];
+    const USERS = [];
 
     for (const u of USERS) {
       await client.query(`

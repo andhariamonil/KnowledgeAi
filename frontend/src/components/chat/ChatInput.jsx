@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function ChatInput({ onSend, disabled = false, searchMode = 'hybrid' }) {
+export default function ChatInput({ onSend, disabled = false }) {
   const [value, setValue] = useState('');
   const textareaRef = useRef(null);
 
@@ -60,10 +60,6 @@ export default function ChatInput({ onSend, disabled = false, searchMode = 'hybr
       </div>
 
       <div className="chat-input-actions">
-        <div className="input-action-btn" title="Current search mode">
-          <span>{searchMode === 'hybrid' ? '⚡' : searchMode === 'semantic' ? '🧠' : '#'}</span>
-          <span>{searchMode === 'hybrid' ? 'Hybrid search' : searchMode === 'semantic' ? 'Semantic only' : 'Keyword only'}</span>
-        </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-muted)' }}>
           <kbd style={{
             padding: '1px 5px', borderRadius: 3,

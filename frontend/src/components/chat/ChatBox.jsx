@@ -26,7 +26,7 @@ function TypingIndicator() {
   );
 }
 
-export default function ChatBox({ messages, onSend, isTyping, searchMode }) {
+export default function ChatBox({ messages, onSend, onDelete, isTyping }) {
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export default function ChatBox({ messages, onSend, isTyping, searchMode }) {
         ) : (
           <>
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+              <MessageBubble key={msg.id} message={msg} onDelete={onDelete} />
             ))}
             {isTyping && <TypingIndicator />}
             <div ref={bottomRef} />
@@ -64,7 +64,7 @@ export default function ChatBox({ messages, onSend, isTyping, searchMode }) {
         )}
       </div>
 
-      <ChatInput onSend={onSend} disabled={isTyping} searchMode={searchMode} />
+      <ChatInput onSend={onSend} disabled={isTyping} />
     </div>
   );
 }

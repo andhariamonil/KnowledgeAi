@@ -10,17 +10,17 @@ export default function Documents() {
   const { user } = useAuth();
   const [documents, setDocuments]   = useState([]);
   const [loading, setLoading]       = useState(true);
-  const [showUpload, setShowUpload] = useState(true);
+  const [showUpload, setShowUpload] = useState(user?.role !== 'trainee');
   const [toast, setToast]           = useState(null);
 
   const loadDocs = () => {
     setLoading(true);
-    documentsAPI.list(user?.workspace)
+    documentsAPI.list()
       .then((data) => { setDocuments(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => { setDocuments([]); setLoading(false); });
   };
 
-  useEffect(() => { loadDocs(); }, [user?.workspace]);
+  useEffect(() => { loadDocs(); }, []);
 
   // Auto-refresh every 8 seconds if any doc is still processing
   useEffect(() => {
@@ -95,12 +95,14 @@ export default function Documents() {
               Upload and manage the documents powering your AI assistant.
             </p>
           </div>
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowUpload(v => !v)}
-          >
-            {showUpload ? '▲ Hide Upload' : '📤 Upload Files'}
-          </button>
+          {user?.role !== 'trainee' && (
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowUpload(v => !v)}
+            >
+              {showUpload ? '▲ Hide Upload' : '📤 Upload Files'}
+            </button>
+          )}
         </div>
 
         {/* Mini stats */}
@@ -155,12 +157,12 @@ export default function Documents() {
       </div>
 
       {/* Upload Zone */}
-      {showUpload && (
+      {showUpload && user?.role !== 'trainee' && (
         <div className="animate-fade-up delay-100" style={{ marginBottom: 28 }}>
           <UploadCard
             onUploaded={handleUploaded}
             onError={(err) => showToast(`Upload failed: ${err.message}`, 'error')}
-            workspaceId={user?.workspace}
+            workspaceId={null}
           />
         </div>
       )}

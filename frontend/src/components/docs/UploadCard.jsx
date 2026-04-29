@@ -3,7 +3,7 @@ import { documentsAPI } from '../../services/api';
 
 const ACCEPTED_TYPES = ['.pdf', '.docx', '.doc', '.txt', '.md', '.csv', '.xlsx'];
 
-export default function UploadCard({ onUploaded, onError, workspaceId }) {
+export default function UploadCard({ onUploaded, onError }) {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -19,7 +19,7 @@ export default function UploadCard({ onUploaded, onError, workspaceId }) {
     setProgress(0);
 
     try {
-      const doc = await documentsAPI.upload(file, workspaceId, (p) => setProgress(p));
+      const doc = await documentsAPI.upload(file, (p) => setProgress(p));
       onUploaded?.(doc);
     } catch (err) {
       onError?.(err);
