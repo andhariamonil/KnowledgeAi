@@ -25,5 +25,22 @@ npm-debug.log*
 Thumbs.db
 
 # Editor
-.vscode/settings.json
+.vscode/
 .idea/
+*.sublime-project
+*.sublime-workspace
+
+# Large Binaries / Reports
+*.docx
+*.pptx
+*.pdf
+
+# Root Auxiliary Scripts
+generate_report.js
+report.js
+finalppt.js
+
+# Images (keep assets/ if used in README)
+# *.png
+# *.jpg
+# *.jpeg
