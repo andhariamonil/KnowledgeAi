@@ -2,8 +2,6 @@
 
 KnowledgeAI is a sophisticated, full-stack internal knowledge base that allows organizations to upload private documents (PDF, DOCX, MD, CSV, TXT) and query them using natural language. It leverages a **Hybrid RAG (Retrieval-Augmented Generation)** pipeline to provide accurate, source-attributed answers using local vector embeddings and the Groq Llama 3.1 LLM.
 
-![Dashboard Preview](./dashboard.png)
-
 ## 🚀 Key Features
 
 - **Hybrid RAG Pipeline**: Combines semantic vector search (`pgvector`) with traditional keyword search (`tsvector`) using Reciprocal Rank Fusion (RRF) for industry-leading accuracy.
@@ -34,16 +32,6 @@ KnowledgeAI is a sophisticated, full-stack internal knowledge base that allows o
 - **Groq API**: Utilizing **Llama 3.1 8B Instant** for near-instantaneous, high-quality answer generation.
 - **Local TF-IDF Embeddings**: High-speed, deterministic local vector generation (no external API cost for indexing).
 - **Reciprocal Rank Fusion (RRF)**: Advanced merging algorithm for hybrid search results.
-
-## 📸 Screenshots
-
-| Login Page | AI Chat Assistant |
-|------------|-------------------|
-| ![Login](./login.png) | ![Chat](./chat.png) |
-
-| Document Management | Global Dashboard |
-|---------------------|------------------|
-| ![Documents](./dacument.png) | ![Dashboard](./dashboard.png) |
 
 ## 🛠 Getting Started
 

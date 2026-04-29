@@ -23,6 +23,7 @@ npm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Editor
 .vscode/
@@ -30,17 +31,19 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
-# Large Binaries / Reports
-*.docx
-*.pptx
-*.pdf
+# Root Artifacts & Scripts (Ignore everything in root except specific files)
+/*
+!/backend/
+!/frontend/
+!/README.md
+!/package.json
+!/package-lock.json
+!/.gitignore
 
-# Root Auxiliary Scripts
-generate_report.js
-report.js
-finalppt.js
-
-# Images (keep assets/ if used in README)
-# *.png
-# *.jpg
-# *.jpeg
+# Ignore any binary or script files in root
+/*.docx
+/*.pptx
+/*.pdf
+/*.png
+/*.jpg
+/*.js
