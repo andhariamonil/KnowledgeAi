@@ -29,21 +29,11 @@ export default function Profile() {
   const [pwSaving, setPwSaving]     = useState(false);
   const [pwMsg, setPwMsg]           = useState(null);
 
-  // Preferences tab state
-  const [ragMode, setRagMode]       = useState('hybrid');
-  const [resultCount, setResultCount] = useState('5');
-  const [prefMsg, setPrefMsg]       = useState(null);
-
   useEffect(() => {
     setName(user?.name || '');
     setWorkspace(user?.workspace || '');
   }, [user?.name, user?.workspace]);
 
-  useEffect(() => {
-    const prefs = user?.preferences || getStoredPrefs();
-    setRagMode(prefs.ragMode || 'hybrid');
-    setResultCount(String(prefs.resultCount || 5));
-  }, [user]);
 
   const showMsg = (setter, text, type = 'success') => {
     setter({ text, type });
@@ -91,23 +81,9 @@ export default function Profile() {
     }
   };
 
-  // ── Save Preferences ───────────────────────────────────────────────────────
-  const handleSavePreferences = async () => {
-    try {
-      const payload = { ragMode, resultCount: parseInt(resultCount, 10) };
-      localStorage.setItem('knowledgeai_prefs', JSON.stringify(payload));
-      const { user: updatedUser } = await authAPI.updatePreferences(payload);
-      updateUser(updatedUser);
-      showMsg(setPrefMsg, 'Preferences saved!');
-    } catch (err) {
-      showMsg(setPrefMsg, err.message || 'Failed to save preferences', 'error');
-    }
-  };
-
   const TABS = [
     { id: 'profile',     label: '👤 Profile' },
     { id: 'security',    label: '🔒 Security' },
-    { id: 'preferences', label: '⚙️ Preferences' },
   ];
 
   const MsgBanner = ({ msg }) => msg ? (
@@ -267,37 +243,6 @@ export default function Profile() {
           </div>
         )}
 
-        {/* ── Preferences ── */}
-        {tab === 'preferences' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Default RAG / Search Mode</label>
-              <select className="form-input" value={ragMode}
-                onChange={e => setRagMode(e.target.value)} style={{ width: '100%', cursor: 'pointer' }}>
-                <option value="hybrid">⚡ Hybrid — Semantic + Keyword (Recommended)</option>
-                <option value="semantic">🧠 Semantic Only — Meaning-based</option>
-                <option value="keyword"># Keyword Only — Exact word match</option>
-              </select>
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Number of Source Results</label>
-              <select className="form-input" value={resultCount}
-                onChange={e => setResultCount(e.target.value)} style={{ width: '100%', cursor: 'pointer' }}>
-                <option value="3">3 sources</option>
-                <option value="5">5 sources (default)</option>
-                <option value="10">10 sources</option>
-              </select>
-            </div>
-            <MsgBanner msg={prefMsg} />
-            <button onClick={handleSavePreferences} className="btn btn-primary"
-              style={{ alignSelf: 'flex-start' }}>
-              ⚙️ Save Preferences
-            </button>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Preferences are saved locally in your browser.
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

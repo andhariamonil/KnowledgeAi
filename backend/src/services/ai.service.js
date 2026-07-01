@@ -76,6 +76,106 @@ async function embedBatch(texts) {
   return texts.map(t => localEmbed(t.trim().slice(0, 1000)));
 }
 
+function cosineSimilarity(a, b) {
+  let dot = 0;
+  for (let i = 0; i < a.length; i++) dot += a[i] * b[i];
+  return dot;
+}
+
+function wordsSimilar(a, b) {
+  if (a === b) return true;
+  if (a.includes(b) || b.includes(a)) return true;
+  if (Math.abs(a.length - b.length) > 2) return false;
+  let diff = 0;
+  const len = Math.max(a.length, b.length);
+  for (let i = 0; i < len; i++) if (a[i] !== b[i]) diff++;
+  return diff <= 2;
+}
+
+function questionMatchesSource(question, sourceName) {
+  const q = question.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+  const nameBase = sourceName.toLowerCase().replace(/\.[a-z0-9]+$/i, '').replace(/[_-]/g, ' ').trim();
+
+  if (nameBase.length > 3 && q.includes(nameBase)) return true;
+
+  const nameWords = nameBase.split(/\s+/).filter((w) => w.length > 2);
+  const qWords = q.split(/\s+/).filter((w) => w.length > 2);
+  if (!nameWords.length) return false;
+
+  const matches = nameWords.filter((nw) => qWords.some((qw) => wordsSimilar(qw, nw)));
+  return matches.length >= Math.max(1, Math.ceil(nameWords.length * 0.5));
+}
+
+function extractSectionHint(content) {
+  const lines = content.trim().split('\n').map((l) => l.trim()).filter(Boolean);
+  for (const line of lines.slice(0, 4)) {
+    const numbered = line.match(/^(?:section\s+)?(\d+(?:\.\d+)+)\s+(.{3,80})$/i);
+    if (numbered) return `Section ${numbered[1]} ${numbered[2]}`.trim();
+    if (line.length < 90 && /^(?:section\s+)?\d+(?:\.\d+)+\s/.test(line)) return line;
+  }
+  return null;
+}
+
+async function detectUsedContexts(question, answer, contexts) {
+  const indexed = contexts.map((c, i) => ({ index: i + 1, context: c }));
+
+  let candidates = indexed.filter(({ context }) =>
+    questionMatchesSource(question, context.source || context.name || '')
+  );
+  if (candidates.length === 0) candidates = indexed;
+
+  const answerEmb = await embedText(answer);
+  const scored = await Promise.all(
+    candidates.map(async (item) => ({
+      ...item,
+      score: cosineSimilarity(answerEmb, await embedText(item.context.content)),
+    }))
+  );
+  scored.sort((a, b) => b.score - a.score);
+  if (!scored.length) return [];
+
+  const top = scored[0].score;
+  const second = scored[1]?.score ?? 0;
+
+  if (scored.length === 1 || top > second * 1.12 || top - second > 0.04) {
+    return [scored[0]];
+  }
+
+  const threshold = top * 0.9;
+  return scored.filter((s) => s.score >= threshold).slice(0, 3);
+}
+
+function formatSourceCitations(usedChunks) {
+  if (!usedChunks.length) return '';
+  const lines = usedChunks.map(({ index, context }) => {
+    const file = context.source || context.name || 'Unknown';
+    const section = extractSectionHint(context.content);
+    const label = section ? `${file} (${section})` : file;
+    return `* Source ${index}: ${label}`;
+  });
+  return `\n\n**Sources:**\n${lines.join('\n')}`;
+}
+
+function stripAnswerSourceNoise(body) {
+  return body
+    .replace(/\[\[SOURCES?:[^\]]*\]\]\s*$/i, '')
+    .replace(/\[\[USED:[^\]]*\]\]\s*$/i, '')
+    .replace(/\n*\*\*Sources?:\*\*[\s\S]*$/i, '')
+    .trim();
+}
+
+async function finalizeAnswer(question, answer, contexts) {
+  const trimmed = answer?.trim() || '';
+  if (!trimmed || !contexts?.length) return { answer: trimmed, usedSources: [], usedChunks: [] };
+
+  const body = stripAnswerSourceNoise(trimmed);
+  const usedChunks = await detectUsedContexts(question, body, contexts);
+  const usedSources = [...new Set(usedChunks.map((u) => u.context.source).filter(Boolean))];
+  const citationBlock = formatSourceCitations(usedChunks);
+
+  return { answer: body + citationBlock, usedSources, usedChunks };
+}
+
 // ── generateAnswer (Groq) ─────────────────────────────────────────────────────
 async function generateAnswer(question, contexts) {
   const contextBlock = contexts
@@ -97,18 +197,22 @@ async function generateAnswer(question, contexts) {
       messages: [
         {
           role: 'system',
-          content: `You are an internal knowledge assistant for an organization.
-Answer questions using ONLY the provided context documents.
-If the answer is not in the context, say: "I couldn't find relevant information in the knowledge base for this question."
-Be concise, accurate, and mention which source(s) you used.
-Format your answer clearly. Do not make up information.`,
+          content: `you are a friendly internal knowledge assistant.
+Rules:
+- Use ONLY the provided context. Do not invent facts.
+- Do NOT copy sentences verbatim from the documents.
+- Explain the answer in simple, easy-to-understand language (like teaching a colleague).
+- Start with a short direct answer, then add 2–3 clear bullet points if needed.
+- Replace jargon with plain words when possible.
+- If the context doesn't contain the answer, say you couldn't find it.
+- Do not mention sources, filenames, or source numbers in your answer — sources are added automatically.`,
         },
         {
           role: 'user',
-          content: `CONTEXT DOCUMENTS:\n\n${contextBlock}\n\n---\n\nQUESTION: ${question}\n\nPlease answer based only on the context above.`,
+          content: `CONTEXT DOCUMENTS:\n\n${contextBlock}\n\n---\n\nQUESTION: ${question}\n\nUsing only the context above, answer the question in your own words. Explain simply — do not quote the document directly.`,
         },
       ],
-      temperature: 0.3,
+      temperature: 0.5,
       max_tokens:  1024,
     });
 
@@ -116,29 +220,39 @@ Format your answer clearly. Do not make up information.`,
     if (!answer) throw new Error('Empty response from Groq');
 
     console.log(`✅ Groq answered (${completion.usage?.total_tokens || '?'} tokens)`);
-    return answer;
+    return await finalizeAnswer(question, answer, contexts);
 
   } catch (err) {
     console.error('❌ Groq error:', err.message);
 
     // Handle specific Groq errors
     if (err.message?.includes('rate limit') || err.status === 429) {
-      return `I'm receiving too many requests right now. Please wait a moment and try again.\n\n**Raw context:**\n${contexts[0]?.content?.slice(0, 300)}…`;
+      const msg = `I'm receiving too many requests right now. Please wait a moment and try again.\n\n**Raw context:**\n${contexts[0]?.content?.slice(0, 300)}…`;
+      return await finalizeAnswer(question, msg, contexts.slice(0, 1));
     }
     if (err.message?.includes('invalid_api_key') || err.status === 401) {
-      return `AI service authentication failed. Please check your GROQ_API_KEY in the backend .env file.\n\nGet a free key at: https://console.groq.com`;
+      return {
+        answer: `AI service authentication failed. Please check your GROQ_API_KEY in the backend .env file.\n\nGet a free key at: https://console.groq.com`,
+        usedSources: [],
+        usedChunks: [],
+      };
     }
 
-    return buildFallbackAnswer(question, contexts);
+    return await buildFallbackAnswer(question, contexts);
   }
 }
 
-function buildFallbackAnswer(question, contexts) {
+async function buildFallbackAnswer(question, contexts) {
   if (!contexts?.length) {
-    return "I couldn't find any relevant information in the knowledge base for this question. Please make sure documents have been uploaded and indexed.";
+    return {
+      answer: "I couldn't find any relevant information in the knowledge base for this question. Please make sure documents have been uploaded and indexed.",
+      usedSources: [],
+      usedChunks: [],
+    };
   }
   const top = contexts[0];
-  return `Based on **${top.source}**:\n\n${top.content.slice(0, 600)}${top.content.length > 600 ? '…' : ''}`;
+  const summary = `${top.content.slice(0, 600)}${top.content.length > 600 ? '…' : ''}`;
+  return await finalizeAnswer(question, summary, [top]);
 }
 
 module.exports = { embedText, embedBatch, generateAnswer, localEmbed };

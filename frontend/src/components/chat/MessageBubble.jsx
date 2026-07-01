@@ -29,7 +29,7 @@ function SourceChip({ source, index, onOpen }) {
         onClick={() => onOpen?.(source)}
       >
         <span>{cfg.emoji}</span>
-        <span style={{ fontWeight: 600 }}>Source {index}: {cleanName}</span>
+        <span style={{ fontWeight: 600 }}>Source: {cleanName}</span>
       </button>
       {source.content && (
         <div style={{
@@ -126,19 +126,6 @@ export default function MessageBubble({ message, onDelete }) {
               </button>
             )}
           </div>
-
-        {/* Sources — only for AI messages with sources */}
-        {!isUser && Array.isArray(sources) && sources.length > 0 && (
-          <div className="sources-section">
-            <div className="sources-label">Sources used</div>
-            <div className="source-chips">
-              {sources.map((src, i) => {
-                if (!src) return null;
-                return <SourceChip key={i} source={src} index={i + 1} onOpen={openSource} />;
-              })}
-            </div>
-          </div>
-        )}
 
         <div className="message-time">{formatTime(message.timestamp || message.created_at)}</div>
       </div>

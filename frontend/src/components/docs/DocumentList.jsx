@@ -45,11 +45,10 @@ function formatDate(iso) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-const FILTERS = ['All', 'PDF', 'Doc', 'Markdown', 'Indexed', 'Processing', 'Failed'];
+// Only search is supported on the frontend; filter buttons are removed.
 
 export default function DocumentList({ documents = [], onDelete, onQuery, onOpen, user }) {
   const [searchParams] = useSearchParams();
-  const [activeFilter, setActiveFilter] = useState('All');
   const [searchTerm, setSearchTerm]     = useState('');
 
   useEffect(() => {
@@ -61,17 +60,7 @@ export default function DocumentList({ documents = [], onDelete, onQuery, onOpen
   const normDocs = documents.map(normalise);
 
   const filtered = normDocs.filter((doc) => {
-    const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter =
-      activeFilter === 'All'        ? true
-      : activeFilter === 'PDF'      ? doc.type === 'pdf'
-      : activeFilter === 'Doc'      ? (doc.type === 'doc' || doc.type === 'docx')
-      : activeFilter === 'Markdown' ? doc.type === 'md'
-      : activeFilter === 'Indexed'  ? doc.status === 'indexed'
-      : activeFilter === 'Processing' ? doc.status === 'processing'
-      : activeFilter === 'Failed'   ? doc.status === 'failed'
-      : true;
-    return matchesSearch && matchesFilter;
+    return doc.name.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   return (
@@ -93,18 +82,6 @@ export default function DocumentList({ documents = [], onDelete, onQuery, onOpen
           />
         </div>
 
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {FILTERS.map((f) => (
-            <button
-              key={f}
-              className={`filter-chip ${activeFilter === f ? 'active' : ''}`}
-              onClick={() => setActiveFilter(f)}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-
         <div style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
           {filtered.length} document{filtered.length !== 1 ? 's' : ''}
         </div>
@@ -118,7 +95,7 @@ export default function DocumentList({ documents = [], onDelete, onQuery, onOpen
           <div style={{ fontSize: 13 }}>
             {documents.length === 0
               ? 'Upload your first document to get started.'
-              : 'Try adjusting your search or filters.'}
+              : 'Try adjusting your search.'}
           </div>
         </div>
       ) : (

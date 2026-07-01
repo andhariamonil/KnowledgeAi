@@ -99,6 +99,8 @@ app.use((err, req, res, next) => {
 async function start() {
   try {
     await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}'`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ`);
   } catch (err) {
     console.warn('Schema sync warning:', err.message);
   }

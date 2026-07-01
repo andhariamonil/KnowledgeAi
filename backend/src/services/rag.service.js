@@ -191,14 +191,14 @@ async function ragQuery(question) {
   }
 
   // 3. Generate answer with LLM
-  const answer = await generateAnswer(question, contexts);
+  const { answer, usedChunks } = await generateAnswer(question, contexts);
 
-  // 4. Sources: Include content snippets
-  const sources = contexts.map(c => ({
-    name: c.source,
-    type: c.type,
-    documentId: c.documentId,
-    content: c.content, // Include the actual snippet used
+  // 4. Sources: only chunks that actually support the answer
+  const sources = usedChunks.map(({ context }) => ({
+    name: context.source,
+    type: context.type,
+    documentId: context.documentId,
+    content: context.content,
   }));
 
   return { answer, sources };
